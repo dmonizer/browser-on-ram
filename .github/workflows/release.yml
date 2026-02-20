@@ -10,16 +10,41 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    strategy:
+      matrix:
+        include:
+          - deb_arch: amd64
+            cc: gcc
+            pkg_config_path: /usr/lib/x86_64-linux-gnu/pkgconfig
+            dpkg_arch: ""
+            extra_pkgs: ""
+          - deb_arch: arm64
+            cc: aarch64-linux-gnu-gcc
+            pkg_config_path: /usr/lib/aarch64-linux-gnu/pkgconfig
+            dpkg_arch: arm64
+            extra_pkgs: gcc-aarch64-linux-gnu libcap-dev:arm64
+          - deb_arch: armhf
+            cc: arm-linux-gnueabihf-gcc
+            pkg_config_path: /usr/lib/arm-linux-gnueabihf/pkgconfig
+            dpkg_arch: armhf
+            extra_pkgs: gcc-arm-linux-gnueabihf libcap-dev:armhf
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Add foreign architecture
+        if: matrix.dpkg_arch != ''
+        run: |
+          sudo dpkg --add-architecture ${{ matrix.dpkg_arch }}
+          sudo apt-get update
+
       - name: Install build dependencies
-        run: sudo apt-get install -y gcc libcap-dev
+        run: sudo apt-get install -y gcc libcap-dev ${{ matrix.extra_pkgs }}
 
       - name: Build
-        run: make RELEASE=1
+        run: PKG_CONFIG_PATH=${{ matrix.pkg_config_path }} make RELEASE=1 CC=${{ matrix.cc }}
 
       - name: Get version
         id: version
@@ -27,7 +52,7 @@ jobs:
 
       - name: Package .deb
         run: |
-          PKG_DIR="bor_${{ steps.version.outputs.version }}_amd64"
+          PKG_DIR="bor_${{ steps.version.outputs.version }}_${{ matrix.deb_arch }}"
           mkdir -p "${PKG_DIR}/DEBIAN"
 
           make RELEASE=1 PREFIX="${PWD}/${PKG_DIR}/usr" install
@@ -35,7 +60,7 @@ jobs:
           cat > "${PKG_DIR}/DEBIAN/control" <<EOF
           Package: bor
           Version: ${{ steps.version.outputs.version }}
-          Architecture: amd64
+          Architecture: ${{ matrix.deb_arch }}
           Maintainer: dmonizer
           Depends: libcap2, libcap2-bin, rsync
           Description: Sync browser directories to RAM
@@ -51,7 +76,7 @@ jobs:
 
           dpkg-deb --build "${PKG_DIR}"
 
-      - name: Create release
+      - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
           files: bor_*.deb
