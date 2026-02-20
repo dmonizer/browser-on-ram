@@ -36,8 +36,20 @@ jobs:
 
       - name: Add foreign architecture
         if: matrix.dpkg_arch != ''
+        env:
+          ARCH: ${{ matrix.dpkg_arch }}
         run: |
-          sudo dpkg --add-architecture ${{ matrix.dpkg_arch }}
+          sudo dpkg --add-architecture ${ARCH}
+          # GitHub runners use amd64-only mirrors; restrict them and add ports.ubuntu.com for ARM
+          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+            sudo sed -i '/^Types: deb/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+          fi
+          [ -f /etc/apt/sources.list ] && sudo sed -i 's/^deb /deb [arch=amd64] /g' /etc/apt/sources.list
+          {
+            echo "deb [arch=${ARCH}] http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse"
+            echo "deb [arch=${ARCH}] http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse"
+            echo "deb [arch=${ARCH}] http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse"
+          } | sudo tee /etc/apt/sources.list.d/ports-${ARCH}.list
           sudo apt-get update
 
       - name: Install build dependencies
