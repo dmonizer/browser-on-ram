@@ -121,6 +121,8 @@ jobs:
                   chown -R "${username}:" "${home}/.config/systemd"
               fi
 
+              rm -f "${home}/.config/bor/.bor.conf"
+
               if [ -d "/run/user/${uid}" ] && [ -f "$config_file" ]; then
                   runuser -u "$username" -- env XDG_RUNTIME_DIR="/run/user/${uid}" HOME="$home" \
                       systemctl --user daemon-reload || true
