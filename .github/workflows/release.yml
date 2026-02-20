@@ -82,7 +82,98 @@ jobs:
           cat > "${PKG_DIR}/DEBIAN/postinst" <<'EOF'
           #!/bin/sh
           set -e
-          setcap 'cap_dac_override,cap_sys_admin=p' /usr/bin/bor
+
+          detect_browsers() {
+              b=""
+              if command -v firefox >/dev/null 2>&1 || command -v firefox-esr >/dev/null 2>&1; then
+                  b="${b}firefox
+          "
+              fi
+              if command -v chromium >/dev/null 2>&1 || command -v chromium-browser >/dev/null 2>&1; then
+                  b="${b}chromium
+          "
+              fi
+              if command -v google-chrome-stable >/dev/null 2>&1; then
+                  b="${b}google-chrome-stable
+          "
+              fi
+              if command -v google-chrome-beta >/dev/null 2>&1; then
+                  b="${b}google-chrome-beta
+          "
+              fi
+              if command -v google-chrome-unstable >/dev/null 2>&1; then
+                  b="${b}google-chrome-unstable
+          "
+              fi
+              if command -v vivaldi >/dev/null 2>&1; then
+                  b="${b}vivaldi
+          "
+              fi
+              if command -v vivaldi-snapshot >/dev/null 2>&1; then
+                  b="${b}vivaldi-snapshot
+          "
+              fi
+              if command -v opera >/dev/null 2>&1; then
+                  b="${b}opera
+          "
+              fi
+              if command -v brave >/dev/null 2>&1 || command -v brave-browser >/dev/null 2>&1; then
+                  b="${b}brave
+          "
+              fi
+              if command -v falkon >/dev/null 2>&1; then
+                  b="${b}falkon
+          "
+              fi
+              if command -v librewolf >/dev/null 2>&1; then
+                  b="${b}librewolf
+          "
+              fi
+              printf '%s' "$b"
+          }
+
+          setup_user() {
+              username="$1"
+              home="$2"
+              uid="$3"
+              config_file="${home}/.config/bor/bor.conf"
+
+              if [ ! -f "$config_file" ]; then
+                  browsers=$(detect_browsers)
+                  if [ -n "$browsers" ]; then
+                      mkdir -p "${home}/.config/bor"
+                      chown "${username}:" "${home}/.config/bor"
+                      printf '[config]\nenable_cache = false\nresync_cache = true\nenable_overlay = false\nmax_log_entries = 10\n\n[browsers]\n%s' \
+                          "$browsers" > "$config_file"
+                      chown "${username}:" "$config_file"
+                  fi
+              fi
+
+              wants_dir="${home}/.config/systemd/user/default.target.wants"
+              if [ ! -L "${wants_dir}/bor.service" ]; then
+                  mkdir -p "$wants_dir"
+                  ln -sf /usr/lib/systemd/user/bor.service "${wants_dir}/bor.service"
+                  chown -R "${username}:" "${home}/.config/systemd"
+              fi
+
+              if [ -d "/run/user/${uid}" ] && [ -f "$config_file" ]; then
+                  runuser -u "$username" -- env \
+                      XDG_RUNTIME_DIR="/run/user/${uid}" \
+                      HOME="$home" \
+                      systemctl --user start bor.service || true
+              fi
+          }
+
+          case "$1" in
+              configure)
+                  setcap 'cap_dac_override,cap_sys_admin=p' /usr/bin/bor
+                  while IFS=: read -r username _ uid _ _ homedir _; do
+                      [ "${uid}" -ge 1000 ] 2>/dev/null || continue
+                      [ -d "$homedir" ] || continue
+                      setup_user "$username" "$homedir" "$uid"
+                  done < /etc/passwd
+                  ;;
+          esac
           EOF
           chmod 755 "${PKG_DIR}/DEBIAN/postinst"
 
