@@ -1,6 +1,6 @@
 echo procname = chrome
 
-if [[ -n "$CHROME_CONFIG_HOME" ]]; then
+if [ -n "$CHROME_CONFIG_HOME" ]; then
     echo "profile = $CHROME_CONFIG_HOME"
 else
     echo "profile = $XDG_CONFIG_HOME/google-chrome-unstable"
