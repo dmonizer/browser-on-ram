@@ -84,52 +84,17 @@ jobs:
           set -e
 
           detect_browsers() {
-              b=""
-              if command -v firefox >/dev/null 2>&1 || command -v firefox-esr >/dev/null 2>&1; then
-                  b="${b}firefox
-          "
-              fi
-              if command -v chromium >/dev/null 2>&1 || command -v chromium-browser >/dev/null 2>&1; then
-                  b="${b}chromium
-          "
-              fi
-              if command -v google-chrome-stable >/dev/null 2>&1; then
-                  b="${b}google-chrome-stable
-          "
-              fi
-              if command -v google-chrome-beta >/dev/null 2>&1; then
-                  b="${b}google-chrome-beta
-          "
-              fi
-              if command -v google-chrome-unstable >/dev/null 2>&1; then
-                  b="${b}google-chrome-unstable
-          "
-              fi
-              if command -v vivaldi >/dev/null 2>&1; then
-                  b="${b}vivaldi
-          "
-              fi
-              if command -v vivaldi-snapshot >/dev/null 2>&1; then
-                  b="${b}vivaldi-snapshot
-          "
-              fi
-              if command -v opera >/dev/null 2>&1; then
-                  b="${b}opera
-          "
-              fi
-              if command -v brave >/dev/null 2>&1 || command -v brave-browser >/dev/null 2>&1; then
-                  b="${b}brave
-          "
-              fi
-              if command -v falkon >/dev/null 2>&1; then
-                  b="${b}falkon
-          "
-              fi
-              if command -v librewolf >/dev/null 2>&1; then
-                  b="${b}librewolf
-          "
-              fi
-              printf '%s' "$b"
+              if command -v firefox >/dev/null 2>&1 || command -v firefox-esr >/dev/null 2>&1; then echo firefox; fi
+              if command -v chromium >/dev/null 2>&1 || command -v chromium-browser >/dev/null 2>&1; then echo chromium; fi
+              if command -v google-chrome-stable >/dev/null 2>&1; then echo google-chrome-stable; fi
+              if command -v google-chrome-beta >/dev/null 2>&1; then echo google-chrome-beta; fi
+              if command -v google-chrome-unstable >/dev/null 2>&1; then echo google-chrome-unstable; fi
+              if command -v vivaldi >/dev/null 2>&1; then echo vivaldi; fi
+              if command -v vivaldi-snapshot >/dev/null 2>&1; then echo vivaldi-snapshot; fi
+              if command -v opera >/dev/null 2>&1; then echo opera; fi
+              if command -v brave >/dev/null 2>&1 || command -v brave-browser >/dev/null 2>&1; then echo brave; fi
+              if command -v falkon >/dev/null 2>&1; then echo falkon; fi
+              if command -v librewolf >/dev/null 2>&1; then echo librewolf; fi
           }
 
           setup_user() {
@@ -143,7 +108,7 @@ jobs:
                   if [ -n "$browsers" ]; then
                       mkdir -p "${home}/.config/bor"
                       chown "${username}:" "${home}/.config/bor"
-                      printf '[config]\nenable_cache = false\nresync_cache = true\nenable_overlay = false\nmax_log_entries = 10\n\n[browsers]\n%s' \
+                      printf '[config]\nenable_cache = false\nresync_cache = true\nenable_overlay = false\nmax_log_entries = 10\n\n[browsers]\n%s\n' \
                           "$browsers" > "$config_file"
                       chown "${username}:" "$config_file"
                   fi
@@ -157,9 +122,9 @@ jobs:
               fi
 
               if [ -d "/run/user/${uid}" ] && [ -f "$config_file" ]; then
-                  runuser -u "$username" -- env \
-                      XDG_RUNTIME_DIR="/run/user/${uid}" \
-                      HOME="$home" \
+                  runuser -u "$username" -- env XDG_RUNTIME_DIR="/run/user/${uid}" HOME="$home" \
+                      systemctl --user daemon-reload || true
+                  runuser -u "$username" -- env XDG_RUNTIME_DIR="/run/user/${uid}" HOME="$home" \
                       systemctl --user start bor.service || true
               fi
           }
